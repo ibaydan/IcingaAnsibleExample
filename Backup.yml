@@ -1,0 +1,13 @@
+---
+- hosts: all
+  user: root
+  
+  tasks:
+
+    - name: Copy Log and Backup Scripts 
+      copy: src=./Backup/ dest=/root/ mode="a+x"
+
+    - name: Create Cron Job For Backup and Log
+      cron: name="Compress Logs and Send To AWS S3" minute="0" hour="7" job="/root/cron_job.sh"
+
+

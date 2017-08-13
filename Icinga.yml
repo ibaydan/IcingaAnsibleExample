@@ -1,0 +1,86 @@
+---
+- hosts: all
+  user: root
+  vars:
+    icinga_conf: '/etc/icinga/conf.d'
+    icinga: './Icinga'
+  
+  tasks:
+    
+    - name: Adjust Timezone
+      file:
+        src: /usr/share/zoneinfo/Europe/Istanbul
+        dest: /etc/localtime
+        state: link
+      when: (ansible_distribution == "CentOS" and ansible_distribution_major_version == "7")
+
+
+    - name: Add Icinga Repository
+      yum:
+        name: https://packages.icinga.com/epel/icinga-rpm-release-7-latest.noarch.rpm
+        state: present
+
+    - name: Enable EPEL Repository
+      yum: name=epel-release state=latest
+
+    - name: Install Icinga, Docker and Related Packages
+      yum: name={{ item }} state=latest update_cache=no
+      with_items:
+        - docker
+        - icinga
+        - icinga-gui
+        - icinga-idoutils-libdbi-mysql
+        - icinga-idoutils
+        - python-pip
+        - python-docker-py.noarch
+        - yajl-devel
+        - mariadb-server
+        - MySQL-python
+        - vim
+        - ntp
+        - perl-Apache-Htpasswd
+
+
+    - name: Start Ntpd Service
+      service: 
+        name: ntpd
+        state: restarted
+
+
+    - name: Start MySQL or MariaDB Service
+      service: 
+        name: mariadb 
+        state: restarted
+
+    - name: MYSQL - Create Icinga Database
+      mysql_db:
+        name: icinga
+        state: present
+
+    - mysql_user:
+        name: icinga
+        password: icinga
+        priv: '*.*:ALL'
+        state: present
+
+    - name: Copy Icinga SQL
+      copy: src=./Icinga/Sql/ dest=/root/Icinga/Sql/ mode="a+x"
+
+
+    - name: Import Icinga SQL
+      mysql_db:
+        state: import
+        name: icinga
+        target: /root/Icinga/Sql/icinga_schema.sql
+
+    - name: Download Icinga Plugins
+      get_url: url=https://www.monitoring-plugins.org/download/monitoring-plugins-2.1.2.tar.gz dest=/tmp/
+
+    - name: Restart HTTP Service
+      service: name=httpd state=reloaded
+
+    - name: Restart ICINGA Service
+      service: name=icinga state=reloaded
+
+    - name: Create icingaadmin User and Set Password
+      shell: "htpasswd -b /etc/icinga/passwd icingaadmin password"

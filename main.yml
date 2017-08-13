@@ -1,0 +1,9 @@
+---
+- name: Jobs Starts
+  hosts: localhost
+
+- include: Icinga.yml
+
+- include: Docker.yml
+
+- include: Backup.yml

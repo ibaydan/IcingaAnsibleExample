@@ -1,0 +1,36 @@
+---
+- hosts: all
+  user: root
+  vars:
+    base_dir: "{{ BASE_DIR|default('/root') }}"
+    icinga_conf: '/etc/icinga/conf.d'
+
+  tasks:
+
+    - name: Start Docker Service
+      service: name=docker state=started enabled=yes    
+
+    - name: Start MySQL Container
+      docker: 
+        image: "mysql" 
+        name: "mymariadb" 
+        state: started
+        env: 
+          MYSQL_ROOT_PASSWORD: "my-secret-pw"
+
+
+    - name: Start HTTP Container
+      docker: 
+        image: "httpd" 
+        name: "myhttpd"  
+        state: started
+
+
+    - name: Create HTTP Icinga Conf file
+      template: src=./Icinga/Templates/myhttpd.j2 dest={{ icinga_conf }}/myhttp.cfg
+
+    - name: Create MySQL Icinga Conf file
+      template: src=./Icinga/Templates/mydb.j2 dest={{ icinga_conf }}/mydb.cfg
+
+    - name: Restart Icinga Service
+      service: name=icinga state=reloaded
